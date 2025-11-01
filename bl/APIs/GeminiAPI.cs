@@ -1,33 +1,180 @@
-using Microsoft.Extensions.Configuration;
 using System;
+using System.Collections.Generic;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 
 namespace CameraAnalyzer.bl.APIs
 {
-
     public class GeminiAPI
     {
-        private readonly HttpClient _client;
         private readonly string _apiKey;
+        private readonly HttpClient _httpClient;
+        private readonly string _apiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models";
+        private readonly string _modelName = "gemini-2.0-flash";
 
-        public GeminiAPI(IConfiguration config)
+        // -----------------------------------------------------------
+        //  CONSTRUCTOR
+        // -----------------------------------------------------------
+        public GeminiAPI(IConfiguration configuration)
         {
-            _apiKey = config["GeminiAPI:ApiKey"] ?? throw new Exception("Missing Gemini API key");
-            _client = new HttpClient();
+            _apiKey = configuration["GeminiAPI:ApiKey"]
+                ?? throw new InvalidOperationException("Missing Gemini API key in configuration.");
+
+            _httpClient = new HttpClient();
+            _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         }
 
-        public String getApiKey()
+        // -----------------------------------------------------------
+        //  TEXT-ONLY REQUEST
+        // -----------------------------------------------------------
+        public async Task<string?> AskGeminiAsync(string prompt)
         {
-            return _apiKey;
+            if (string.IsNullOrWhiteSpace(prompt))
+                throw new ArgumentException("Prompt cannot be empty.", nameof(prompt));
+
+            var requestUri = $"{_apiEndpoint}/{_modelName}:generateContent?key={_apiKey}";
+
+            var requestPayload = new
+            {
+                contents = new[]
+                {
+                    new
+                    {
+                        parts = new[]
+                        {
+                            new { text = prompt }
+                        }
+                    }
+                }
+            };
+
+            var jsonPayload = JsonSerializer.Serialize(requestPayload);
+            var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+            try
+            {
+                var response = await _httpClient.PostAsync(requestUri, content);
+                response.EnsureSuccessStatusCode();
+
+                var responseBody = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(responseBody);
+
+                if (!doc.RootElement.TryGetProperty("candidates", out var candidates) ||
+                    candidates.GetArrayLength() == 0)
+                    return "No valid response from Gemini.";
+
+                var resultText = candidates[0]
+                    .GetProperty("content")
+                    .GetProperty("parts")[0]
+                    .GetProperty("text")
+                    .GetString();
+
+                return resultText ?? "No text in response.";
+            }
+            catch (Exception ex)
+            {
+                return $"Error calling Gemini API: {ex.Message}";
+            }
         }
 
-        public async Task<string> AskGeminiAsync(string prompt)
+        // -----------------------------------------------------------
+        //  IMAGE + TEXT REQUEST
+        // -----------------------------------------------------------
+        public async Task<string?> AnalyzeImageAsync(string base64ImageData, string mimeType = "image/jpeg")
         {
-            var request = new HttpRequestMessage(HttpMethod.Post, "https://api.gemini.com/v1/query");
-            request.Headers.Add("Authorization", $"Bearer {_apiKey}");
-            request.Content = new StringContent($"{{\"prompt\":\"{prompt}\"}}", System.Text.Encoding.UTF8, "application/json");
+            if (string.IsNullOrWhiteSpace(base64ImageData))
+                throw new ArgumentException("Image data cannot be empty.", nameof(base64ImageData));
 
-            var response = await _client.SendAsync(request);
-            return await response.Content.ReadAsStringAsync();
+            var prompt = GetPrompt();
+            Console.WriteLine("Generated prompt for image analysis.");
+            var requestUri = $"{_apiEndpoint}/{_modelName}:generateContent?key={_apiKey}";
+
+            var requestPayload = new
+            {
+                contents = new[]
+                {
+                    new
+                    {
+                        parts = new object[]
+                        {
+                            new { text = prompt },
+                            new
+                            {
+                                inlineData = new
+                                {
+                                    mimeType = mimeType,
+                                    data = base64ImageData
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+
+            var jsonPayload = JsonSerializer.Serialize(requestPayload);
+            var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+            try
+            {
+                var response = await _httpClient.PostAsync(requestUri, content);
+                response.EnsureSuccessStatusCode();
+
+                var responseBody = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(responseBody);
+
+                if (!doc.RootElement.TryGetProperty("candidates", out var candidates) ||
+                    candidates.GetArrayLength() == 0)
+                {
+                    Console.WriteLine("Unexpected response structure from Gemini.");
+                    return null;
+                }
+
+                var text = candidates[0]
+                    .GetProperty("content")
+                    .GetProperty("parts")[0]
+                    .GetProperty("text")
+                    .GetString();
+
+                if (string.IsNullOrWhiteSpace(text))
+                    return null;
+
+                // ניקוי קוד JSON עטוף ב־```json```
+                text = text.Trim();
+                if (text.StartsWith("```json", StringComparison.OrdinalIgnoreCase))
+                    text = text.Substring(7).Trim();
+                if (text.EndsWith("```"))
+                    text = text.Substring(0, text.Length - 3).Trim();
+
+                return text;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error analyzing image: {ex.Message}");
+                return null;
+            }
+        }
+
+        // -----------------------------------------------------------
+        //  PRIVATE HELPER
+        // -----------------------------------------------------------
+        private string GetPrompt()
+        {
+            string[] lines =
+            {
+                "Analyze this shipping label image.",
+                "Extract the 'ship to' and 'ship from' details as JSON objects.",
+                "If multiple labels are detected, return an array of JSON objects.",
+                "Do not add data that isn't visible in the image.",
+                "If any data is missing, fill it as null.",
+                "If countries/states are abbreviations, expand them to full names.",
+                "For each phone number, include the correct country code (e.g. '+1', '+44').",
+                "Ensure accuracy between 'to' and 'from' — if the text is near 'To:' or 'From:', it belongs there."
+            };
+            return string.Join("\n", lines);
         }
     }
 }
