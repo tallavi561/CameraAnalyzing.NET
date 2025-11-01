@@ -50,7 +50,7 @@ namespace CameraAnalyzer.Controllers
         {
             prompt ??= "Analyze this image.";
 
-            string imagePath = "./test1.png";
+            string imagePath = "./pictures/RS0933030576Y.jpg";
 
             if (!System.IO.File.Exists(imagePath))
             {
