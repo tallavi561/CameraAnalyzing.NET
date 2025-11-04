@@ -2,9 +2,13 @@ using System;
 
 namespace CameraAnalyzer.bl.Utils
 {
-    public class Logger
+    public sealed class Logger
     {
-        // Prints an INFO message with only the tag colored
+        private static readonly Lazy<Logger> _instance = new Lazy<Logger>(() => new Logger());
+        public static Logger Instance => _instance.Value;
+
+        private Logger() { } // prevent external creation
+
         public void LogInfo(string message)
         {
             Console.Write($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ");
@@ -14,7 +18,6 @@ namespace CameraAnalyzer.bl.Utils
             Console.WriteLine($" {message}");
         }
 
-        // Prints an ERROR message with only the tag colored
         public void LogError(string message)
         {
             Console.Write($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ");
@@ -24,11 +27,19 @@ namespace CameraAnalyzer.bl.Utils
             Console.WriteLine($" {message}");
         }
 
-        // Optional: add a warning method too
         public void LogWarning(string message)
         {
             Console.Write($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ");
             Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.Write("[WARNING]");
+            Console.ResetColor();
+            Console.WriteLine($" {message}");
+        }
+
+        public void LogDebug(string message)
+        {
+            Console.Write($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ");
+            Console.ForegroundColor = ConsoleColor.Cyan;
             Console.Write("[WARNING]");
             Console.ResetColor();
             Console.WriteLine($" {message}");

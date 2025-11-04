@@ -5,7 +5,14 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using CameraAnalyzer.bl.Utils;
 using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Mvc;
+using CameraAnalyzer.bl.APIs;
+using CameraAnalyzer.bl.Utils;
+using System;
+using System.IO;
+using System.Threading.Tasks;
 
 namespace CameraAnalyzer.bl.APIs
 {
@@ -16,9 +23,7 @@ namespace CameraAnalyzer.bl.APIs
         private readonly string _apiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models";
         private readonly string _modelName = "gemini-2.0-flash";
 
-        // -----------------------------------------------------------
-        //  CONSTRUCTOR
-        // -----------------------------------------------------------
+
         public GeminiAPI(IConfiguration configuration)
         {
             _apiKey = configuration["GeminiAPI:ApiKey"]
@@ -28,16 +33,13 @@ namespace CameraAnalyzer.bl.APIs
             _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         }
 
-        // -----------------------------------------------------------
-        //  TEXT-ONLY REQUEST
-        // -----------------------------------------------------------
+
         public async Task<string?> AskGeminiAsync(string prompt)
         {
             if (string.IsNullOrWhiteSpace(prompt))
                 throw new ArgumentException("Prompt cannot be empty.", nameof(prompt));
 
             var requestUri = $"{_apiEndpoint}/{_modelName}:generateContent?key={_apiKey}";
-
             var requestPayload = new
             {
                 contents = new[]
@@ -81,15 +83,15 @@ namespace CameraAnalyzer.bl.APIs
             }
         }
 
-        // -----------------------------------------------------------
-        //  IMAGE + TEXT REQUEST
-        // -----------------------------------------------------------
-        public async Task<string?> AnalyzeImageAsync(string base64ImageData, string mimeType = "image/jpeg")
+
+        public async Task<string?> AnalyzeImageAsync(string base64ImageData, string prompt, string mimeType = "image/jpeg")
         {
             if (string.IsNullOrWhiteSpace(base64ImageData))
+            {
                 throw new ArgumentException("Image data cannot be empty.", nameof(base64ImageData));
+            }
 
-            var prompt = GetPrompt();
+
             Console.WriteLine("Generated prompt for image analysis.");
             var requestUri = $"{_apiEndpoint}/{_modelName}:generateContent?key={_apiKey}";
 
@@ -142,7 +144,7 @@ namespace CameraAnalyzer.bl.APIs
                 if (string.IsNullOrWhiteSpace(text))
                     return null;
 
-                // ניקוי קוד JSON עטוף ב־```json```
+
                 text = text.Trim();
                 if (text.StartsWith("```json", StringComparison.OrdinalIgnoreCase))
                     text = text.Substring(7).Trim();
@@ -158,9 +160,95 @@ namespace CameraAnalyzer.bl.APIs
             }
         }
 
-        // -----------------------------------------------------------
-        //  PRIVATE HELPER
-        // -----------------------------------------------------------
+        public async Task<string?> AnalyzeImageFromStorageAsync(string imagePath, string prompt, string mimeType = "image/jpeg")
+        {
+
+            // exactly like your example
+            string base64Image;
+            using (var memoryStream = new MemoryStream())
+            {
+                await using (var fileStream = System.IO.File.OpenRead(imagePath))
+                    await fileStream.CopyToAsync(memoryStream);
+                base64Image = Convert.ToBase64String(memoryStream.ToArray());
+            }
+            if (string.IsNullOrWhiteSpace(base64Image))
+            {
+                throw new ArgumentException("Image data cannot be empty.", nameof(base64Image));
+            }
+
+
+            Console.WriteLine("Generated prompt for image analysis.");
+            var requestUri = $"{_apiEndpoint}/{_modelName}:generateContent?key={_apiKey}";
+
+            var requestPayload = new
+            {
+                contents = new[]
+                {
+                    new
+                    {
+                        parts = new object[]
+                        {
+                            new { text = prompt },
+                            new
+                            {
+                                inlineData = new
+                                {
+                                    mimeType = mimeType,
+                                    data = base64Image
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+
+            var jsonPayload = JsonSerializer.Serialize(requestPayload);
+            var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+            try
+            {
+                var response = await _httpClient.PostAsync(requestUri, content);
+                response.EnsureSuccessStatusCode();
+
+                var responseBody = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(responseBody);
+
+                if (!doc.RootElement.TryGetProperty("candidates", out var candidates) ||
+                    candidates.GetArrayLength() == 0)
+                {
+                    Console.WriteLine("Unexpected response structure from Gemini.");
+                    return null;
+                }
+
+                var text = candidates[0]
+                    .GetProperty("content")
+                    .GetProperty("parts")[0]
+                    .GetProperty("text")
+                    .GetString();
+
+                if (string.IsNullOrWhiteSpace(text))
+                    return null;
+
+
+                text = text.Trim();
+                if (text.StartsWith("```json", StringComparison.OrdinalIgnoreCase))
+                    text = text.Substring(7).Trim();
+                if (text.EndsWith("```"))
+                    text = text.Substring(0, text.Length - 3).Trim();
+
+                return text;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error analyzing image: {ex.Message}");
+                return null;
+            }
+        }
+
+
+
+
+
         private string GetPrompt()
         {
             string[] lines =

@@ -12,7 +12,6 @@ namespace CameraAnalyzer.Controllers
     public class GeminiController : ControllerBase
     {
         private readonly GeminiAPI _geminiAPI;
-        private static readonly Logger logger = new Logger();
 
         public GeminiController(GeminiAPI geminiAPI)
         {
@@ -28,17 +27,17 @@ namespace CameraAnalyzer.Controllers
             if (string.IsNullOrWhiteSpace(prompt))
                 return BadRequest("Prompt cannot be empty.");
 
-            logger.LogInfo($"AskGemini endpoint accessed with prompt: {prompt}");
+            Logger.Instance.LogInfo($"AskGemini endpoint accessed with prompt: {prompt}");
 
             string? result = await _geminiAPI.AskGeminiAsync(prompt);
 
             if (string.IsNullOrWhiteSpace(result))
             {
-                logger.LogError("Gemini returned empty response.");
+                Logger.Instance.LogError("Gemini returned empty response.");
                 return BadRequest("Error calling Gemini API.");
             }
 
-            logger.LogInfo("Gemini text response received successfully.");
+            Logger.Instance.LogInfo("Gemini text response received successfully.");
             return Ok(result);
         }
 
@@ -54,7 +53,7 @@ namespace CameraAnalyzer.Controllers
 
             if (!System.IO.File.Exists(imagePath))
             {
-                logger.LogError($"Image not found at: {imagePath}");
+                Logger.Instance.LogError($"Image not found at: {imagePath}");
                 return NotFound($"File '{imagePath}' not found.");
             }
 
@@ -68,17 +67,17 @@ namespace CameraAnalyzer.Controllers
             }
 
             string mimeType = "image/png";
-            logger.LogInfo($"Sending fixed image '{imagePath}' to Gemini API...");
+            Logger.Instance.LogInfo($"Sending fixed image '{imagePath}' to Gemini API...");
 
             string? result = await _geminiAPI.AnalyzeImageAsync(base64Image, mimeType);
 
             if (string.IsNullOrWhiteSpace(result))
             {
-                logger.LogError("Gemini returned empty response for image.");
+                Logger.Instance.LogError("Gemini returned empty response for image.");
                 return BadRequest("Gemini returned no text output.");
             }
 
-            logger.LogInfo("Gemini image analysis completed successfully: " + result);
+            Logger.Instance.LogInfo("Gemini image analysis completed successfully: " + result);
             return Ok(result);
         }
     }
