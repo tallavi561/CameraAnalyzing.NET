@@ -36,48 +36,60 @@ namespace CameraAnalyzer.Controllers
         private string GetPrompt()
         {
             string[] lines =
-            {
-        "You are a precise data extraction system that analyzes shipping label images.",
-        "Your task is to extract all visible shipment information and return it **strictly** as a JSON object following this schema:",
-        "",
-        "interface Address {",
-        "  country: string | null;",
-        "  state: string | null;",
-        "  region: string | null;",
-        "  city: string | null;",
-        "  postalCode: string | null;",
-        "  streetAndHouse: string | null;",
-        "}",
-        "",
-        "interface Details {",
-        "  name: string | null;",
-        "  phone: string | null;",
-        "  email: string | null;",
-        "  address: Address;",
-        "}",
-        "",
-        "interface PackageDetails {",
-        "  barcode: string | null;",
-        "  from: Details;",
-        "  to: Details;",
-        "  weight: number | null;",
-        "  date: string | null;",
-        "  contentDescription: string[];",
-        "}",
-        "",
-        "Instructions:",
-        "1. Analyze all visible text, barcodes, and numbers in the provided image(s).",
-        "2. If multiple shipping labels are visible, return an array of PackageDetails objects; otherwise, return a single object.",
-        "3. Assign data accurately — fields near 'TO', 'SHIP TO', or destination areas belong to 'to'; fields near 'FROM' or sender areas belong to 'from'.",
-        "4. Expand country and state abbreviations to full names (e.g., 'US' → 'United States', 'CA' → 'California').",
-        "5. Normalize phone numbers to include international dialing codes (e.g., '+1', '+44').",
-        "6. Use null for missing or illegible data — do not guess or infer beyond visible information.",
-        "7. Detect and decode any printed barcode text into the 'barcode' field.",
-        "8. Detect and list product descriptions or contents in 'contentDescription' as an array of strings.",
-        "9. Output only raw JSON — no commentary, markdown, or explanations."
-    };
+            [
+            "You are a precise data extraction system that analyzes shipping label images.",
+            "Your task is to extract all visible shipment information and return it **strictly** as a JSON object following this schema:",
+            "",
+            "interface Address {",
+            "  country: string | null;",
+            "  state: string | null;",
+            "  region: string | null;",
+            "  city: string | null;",
+            "  postalCode: string | null;",
+            "  streetAndHouse: string | null;",
+            "}",
+            "",
+            "interface Details {",
+            "  name: string | null;",
+            "  phone: string | null;",
+            "  email: string | null;",
+            "  address: Address;",
+            "}",
+            "",
+            "interface PackageDetails {",
+            "  barcode: string | null;",
+            "  from: Details;",
+            "  to: Details;",
+            "  weight: number | null;",
+            "  date: string | null;",
+            "  contentDescription: string[];",
+            "}",
+            "",
+            "Instructions:",
+            "1. Analyze all visible text, barcodes, and numbers in the provided image(s).",
+            "2. If multiple shipping labels are visible, return an array of PackageDetails objects; otherwise, return a single object.",
+            "3. Assign data accurately — fields near 'TO', 'SHIP TO', or destination areas belong to 'to'; fields near 'FROM' or sender areas belong to 'from'.",
+            "4. Expand country and state abbreviations to full names (e.g., 'US' → 'United States', 'CA' → 'California').",
+            "5. Normalize phone numbers to include international dialing codes (e.g., '+1', '+44').",
+            "6. Use null for missing or illegible data — do not guess or infer beyond visible information.",
+            "7. Detect and decode any printed barcode text into the 'barcode' field.",
+            "8. Detect and list product descriptions or contents in 'contentDescription' as an array of strings.",
+            "9. Output only raw JSON — no commentary, markdown, or explanations."
+            ];
 
             return string.Join("\n", lines);
+        }
+        private string GetPromptForBoundingBoxes()
+        {
+            return string.Join("\n", new[]
+            {
+        "Analyze the attached image of packages.",
+        "Detect all packages visible in the image.",
+        "For each detected package, return its bounding box coordinates as pixel values relative to the top-left corner of the image.",
+        "Return the result strictly as a JSON array, where each element is an object in the format:",
+        "[{\"x1\": <left>, \"y1\": <top>, \"x2\": <right>, \"y2\": <bottom>}]",
+        "Do not include any explanations, comments, or additional text — only the JSON array."
+    });
         }
 
 
@@ -109,9 +121,9 @@ namespace CameraAnalyzer.Controllers
         [HttpGet("analyzeFixedImage")]
         public async Task<IActionResult> AnalyzeFixedImageAsync([FromQuery] string? prompt)
         {
-            prompt ??= GetPrompt();
+            prompt ??= GetPromptForBoundingBoxes();
 
-            string imagePath = "./pictures/RS0933030576Y.jpg";
+            string imagePath = "./test1.png";
 
             if (!System.IO.File.Exists(imagePath))
             {
@@ -140,6 +152,36 @@ namespace CameraAnalyzer.Controllers
             }
 
             Logger.Instance.LogInfo("Gemini image analysis completed successfully: " + result);
+
+            try
+            {
+                var boxes = System.Text.Json.JsonSerializer.Deserialize<List<CameraAnalyzer.bl.Models.BoundingBox>>(result);
+
+                if (boxes == null || boxes.Count == 0)
+                {
+                    Logger.Instance.LogError("No bounding boxes found in Gemini response.");
+                    return Ok("No bounding boxes detected.");
+                }
+
+                string sourceImagePath = "./test1.png";
+                int index = 1;
+
+                foreach (var box in boxes)
+                {
+                    string newFilePath = $"./cropped_outputs/crop_{index}.png";
+                    ImagesCropper.CropAndSaveImage(box.x1, box.y1, box.x2, box.y2, sourceImagePath, newFilePath);
+                    index++;
+                }
+
+                return Ok(new { message = "Cropping completed.", count = boxes.Count });
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogError("Error parsing bounding box JSON: " + ex.Message);
+                return BadRequest("Invalid bounding box JSON format.");
+            }
+
+
             return Ok(result);
         }
     }
