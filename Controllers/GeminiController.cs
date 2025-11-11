@@ -103,17 +103,17 @@ namespace CameraAnalyzer.Controllers
                 promptToUse = GetPrompt();
             }
 
-            Logger.Instance.LogInfo($"AskGemini endpoint accessed with prompt: {promptToUse}");
+            Logger.LogInfo($"AskGemini endpoint accessed with prompt: {promptToUse}");
 
             string? result = await _geminiAPI.AskGeminiAsync(promptToUse);
 
             if (string.IsNullOrWhiteSpace(result))
             {
-                Logger.Instance.LogError("Gemini returned empty response.");
+                Logger.LogError("Gemini returned empty response.");
                 return BadRequest("Error calling Gemini API.");
             }
 
-            Logger.Instance.LogInfo("Gemini text response received successfully.");
+            Logger.LogInfo("Gemini text response received successfully.");
             return Ok(result);
         }
 
@@ -121,13 +121,14 @@ namespace CameraAnalyzer.Controllers
         [HttpGet("analyzeFixedImage")]
         public async Task<IActionResult> AnalyzeFixedImageAsync([FromQuery] string? prompt)
         {
+            
             prompt ??= GetPromptForBoundingBoxes();
 
             string imagePath = "./test1.png";
 
             if (!System.IO.File.Exists(imagePath))
             {
-                Logger.Instance.LogError($"Image not found at: {imagePath}");
+                Logger.LogError($"Image not found at: {imagePath}");
                 return NotFound($"File '{imagePath}' not found.");
             }
 
@@ -141,17 +142,17 @@ namespace CameraAnalyzer.Controllers
             }
 
             string mimeType = "image/png";
-            Logger.Instance.LogInfo($"Sending fixed image '{imagePath}' to Gemini API...");
+            Logger.LogInfo($"Sending fixed image '{imagePath}' to Gemini API...");
 
             string? result = await _geminiAPI.AnalyzeImageAsync(base64Image, prompt, mimeType);
 
             if (string.IsNullOrWhiteSpace(result))
             {
-                Logger.Instance.LogError("Gemini returned empty response for image.");
-                return BadRequest("Gemini returned no text output.");
+                Logger.LogError("Gemini returned empty response for image. " + result);
+                return BadRequest("Gemini returned no text output. " + result);
             }
 
-            Logger.Instance.LogInfo("Gemini image analysis completed successfully: " + result);
+            Logger.LogInfo("Gemini image analysis completed successfully: " + result);
 
             try
             {
@@ -159,7 +160,7 @@ namespace CameraAnalyzer.Controllers
 
                 if (boxes == null || boxes.Count == 0)
                 {
-                    Logger.Instance.LogError("No bounding boxes found in Gemini response.");
+                    Logger.LogError("No bounding boxes found in Gemini response.");
                     return Ok("No bounding boxes detected.");
                 }
 
@@ -177,12 +178,10 @@ namespace CameraAnalyzer.Controllers
             }
             catch (Exception ex)
             {
-                Logger.Instance.LogError("Error parsing bounding box JSON: " + ex.Message);
+                Logger.LogError("Error parsing bounding box JSON: " + ex.Message);
                 return BadRequest("Invalid bounding box JSON format.");
             }
 
-
-            return Ok(result);
         }
     }
 }

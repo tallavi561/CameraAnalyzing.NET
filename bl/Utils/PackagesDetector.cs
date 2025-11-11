@@ -35,7 +35,7 @@ namespace CameraAnalyzer.bl.Utils
                 })
                 .ToList();
 
-            Logger.Instance.LogInfo($"Detected {boxes.Count} packages (threshold={confidenceThreshold}).");
+            Logger.LogInfo($"Detected {boxes.Count} packages (threshold={confidenceThreshold}).");
             return boxes;
         }
     }
