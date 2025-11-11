@@ -1,0 +1,12 @@
+{
+    "omnisharp.useModernNet": true,
+    "omnisharp.path": "latest",
+    "omnisharp.projectLoadTimeout": 60,
+    "omnisharp.loggingLevel": "information",
+    "omnisharp.enableRoslynAnalyzers": true,
+    "omnisharp.enableEditorConfigSupport": true,
+    "omnisharp.enableMSBuildLoadProjectsOnDemand": false,
+    "omnisharp.useGlobalMono": "always",
+    "dotnet.defaultSolution": "CameraAnalyzer.sln",
+    "dotnet.server.useOmnisharp": true
+}
