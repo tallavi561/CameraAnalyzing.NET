@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using CameraAnalyzer.bl.Utils;
 using Microsoft.Extensions.Configuration;
+using CameraAnalyzer.bl.APIs;
 
 namespace CameraAnalyzer.Controllers
 {
@@ -8,18 +9,20 @@ namespace CameraAnalyzer.Controllers
     [Route("api1/v1")]
     public class CameraAnalyzerController : ControllerBase
     {
-    public static Logger logger = new Logger();
-    [HttpGet("getHomePage")]
-    public IActionResult GetHomePage()
-    {
-        logger.LogInfo("Home page accessed.");
-        return Ok("HELLO WORLD");
-    }
-    [HttpGet("startProcess")]
-    public IActionResult StartProcess()
-    {
-        logger.LogInfo("Start process is starting.");
-        return Ok("Process Finished");
-    }
+
+
+        [HttpGet("getHomePage")]
+        public IActionResult GetHomePage()
+        {
+            // Logger.Instance.LogInfo("The API key is: " + _geminiAPI.getApiKey());
+            Logger.Instance.LogInfo("Home page accessed.");
+            return Ok("HELLO WORLD");
+        }
+        [HttpGet("startProcess")]
+        public IActionResult StartProcess()
+        {
+            Logger.Instance.LogInfo("Start process is starting.");
+            return Ok("Process Finished");
+        }
     }
 }

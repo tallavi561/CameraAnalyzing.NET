@@ -2,22 +2,47 @@ using System;
 
 namespace CameraAnalyzer.bl.Utils
 {
-    public class Logger
+    public sealed class Logger
     {
-        // Prints an INFO message in green with timestamp
+        private static readonly Lazy<Logger> _instance = new Lazy<Logger>(() => new Logger());
+        public static Logger Instance => _instance.Value;
+
+        private Logger() { } // prevent external creation
+
         public void LogInfo(string message)
         {
+            Console.Write($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ");
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [INFO] {message}");
+            Console.Write("[INFO]");
             Console.ResetColor();
+            Console.WriteLine($" {message}");
         }
 
-        // Prints an ERROR message in red with timestamp
         public void LogError(string message)
         {
+            Console.Write($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ");
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [ERROR] {message}");
+            Console.Write("[ERROR]");
             Console.ResetColor();
+            Console.WriteLine($" {message}");
+        }
+
+        public void LogWarning(string message)
+        {
+            Console.Write($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ");
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.Write("[WARNING]");
+            Console.ResetColor();
+            Console.WriteLine($" {message}");
+        }
+
+        public void LogDebug(string message)
+        {
+            Console.Write($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ");
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.Write("[WARNING]");
+            Console.ResetColor();
+            Console.WriteLine($" {message}");
         }
     }
 }
