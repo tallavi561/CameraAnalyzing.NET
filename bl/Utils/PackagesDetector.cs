@@ -8,7 +8,6 @@ namespace CameraAnalyzer.bl.Utils
 {
     public static class PackagesDetector
     {
-        // Create() מחזיר IPredictor
         private static readonly IPredictor _model = YoloV8Predictor.Create("models/yolov5n.onnx");
 
         /**
