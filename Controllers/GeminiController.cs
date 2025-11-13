@@ -4,6 +4,7 @@ using CameraAnalyzer.bl.Utils;
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using CameraAnalyzer.bl.Models;
 
 namespace CameraAnalyzer.Controllers
 {
@@ -125,12 +126,20 @@ namespace CameraAnalyzer.Controllers
 
             string imagePath = "./test1.png";
 
+
             if (!System.IO.File.Exists(imagePath))
             {
                 Logger.Instance.LogError($"Image not found at: {imagePath}");
                 return NotFound($"File '{imagePath}' not found.");
             }
+            List<BoundingBox> BoundingBoxes = PackagesDetector.Detect("./test1.png", 0.01f);
+            var x = "1";
+            BoundingBoxes.ForEach((boundingBox) =>
+            {
+                ImagesCropper.CropAndSaveImage(boundingBox.x1, boundingBox.y1, boundingBox.x2, boundingBox.y2, "./test1.png", "./cropped_outputs/" + x + ".png");
+                x += "1";
 
+            });
 
             string base64Image;
             using (var memoryStream = new MemoryStream())
@@ -182,7 +191,7 @@ namespace CameraAnalyzer.Controllers
             }
 
 
-            return Ok(result);
+
         }
     }
 }
