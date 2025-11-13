@@ -58,3 +58,7 @@ pictures/
 TestResult.xml
 nunit-*.xml
 .fake
+
+Post-Office--OCR-test-master/
+
+.fake

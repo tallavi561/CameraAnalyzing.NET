@@ -14,14 +14,14 @@ namespace CameraAnalyzer.Controllers
         [HttpGet("getHomePage")]
         public IActionResult GetHomePage()
         {
-            // Logger.Instance.LogInfo("The API key is: " + _geminiAPI.getApiKey());
-            Logger.Instance.LogInfo("Home page accessed.");
+            // Logger.LogInfo("The API key is: " + _geminiAPI.getApiKey());
+            Logger.LogInfo("Home page accessed.");
             return Ok("HELLO WORLD");
         }
         [HttpGet("startProcess")]
         public IActionResult StartProcess()
         {
-            Logger.Instance.LogInfo("Start process is starting.");
+            Logger.LogInfo("Start process is starting.");
             return Ok("Process Finished");
         }
     }

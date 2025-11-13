@@ -25,7 +25,9 @@ namespace CameraAnalyzer.bl.APIs
             _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         }
 
-
+        /// <summary>
+        /// Sends a text-only prompt to Gemini and returns its response.
+        /// </summary>
         public async Task<string?> AskGeminiAsync(string prompt)
         {
             if (string.IsNullOrWhiteSpace(prompt))
@@ -45,7 +47,9 @@ namespace CameraAnalyzer.bl.APIs
             return await SendRequestAsync(payload);
         }
 
-
+        /// <summary>
+        /// Sends a prompt and image (in base64) to Gemini for analysis.
+        /// </summary>
         public async Task<string?> AnalyzeImageAsync(string base64ImageData, string prompt, string mimeType = "image/jpeg")
         {
             if (string.IsNullOrWhiteSpace(base64ImageData))
@@ -55,7 +59,9 @@ namespace CameraAnalyzer.bl.APIs
             return await SendRequestAsync(payload);
         }
 
-
+        /// <summary>
+        /// Loads image from local storage, encodes it to base64 and sends it for analysis.
+        /// </summary>
         public async Task<string?> AnalyzeImageFromStorageAsync(string imagePath, string prompt, string mimeType = "image/jpeg")
         {
             if (!File.Exists(imagePath))
@@ -73,6 +79,7 @@ namespace CameraAnalyzer.bl.APIs
             return await SendRequestAsync(payload);
         }
 
+        // ---------------------- PRIVATE HELPERS ----------------------
 
         private object BuildImagePayload(string prompt, string base64ImageData, string mimeType)
         {
@@ -149,6 +156,20 @@ namespace CameraAnalyzer.bl.APIs
             return text;
         }
 
-
+        private string GetPrompt()
+        {
+            string[] lines =
+            {
+                "Analyze this shipping label image.",
+                "Extract the 'ship to' and 'ship from' details as JSON objects.",
+                "If multiple labels are detected, return an array of JSON objects.",
+                "Do not add data that isn't visible in the image.",
+                "If any data is missing, fill it as null.",
+                "If countries/states are abbreviations, expand them to full names.",
+                "For each phone number, include the correct country code (e.g. '+1', '+44').",
+                "Ensure accuracy between 'to' and 'from' — if the text is near 'To:' or 'From:', it belongs there."
+            };
+            return string.Join("\n", lines);
+        }
     }
 }

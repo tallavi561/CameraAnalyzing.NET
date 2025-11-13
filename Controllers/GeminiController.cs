@@ -1,136 +1,32 @@
 using Microsoft.AspNetCore.Mvc;
-using CameraAnalyzer.bl.APIs;
-using CameraAnalyzer.bl.Utils;
-using System;
-using System.IO;
 using System.Threading.Tasks;
 using CameraAnalyzer.bl.Models;
 
 namespace CameraAnalyzer.Controllers
 {
     [ApiController]
-    [Route("api1/v1")]
+    [Route("api/v1/[controller]")]
     public class GeminiController : ControllerBase
     {
-        private readonly GeminiAPI _geminiAPI;
+        private readonly IGeminiService _geminiService;
 
-        public GeminiController(GeminiAPI geminiAPI)
+        public GeminiController(IGeminiService geminiService)
         {
-            _geminiAPI = geminiAPI;
+            _geminiService = geminiService;
         }
-
-        private string ItaysGetPrompt()
-        {
-            string[] lines =
-            {
-                "Analyze this shipping label image.",
-                "Extract the 'ship to' and 'ship from' details as JSON objects.",
-                "If multiple labels are detected, return an array of JSON objects.",
-                "Do not add data that isn't visible in the image.",
-                "If any data is missing, fill it as null.",
-                "If countries/states are abbreviations, expand them to full names.",
-                "For each phone number, include the correct country code (e.g. '+1', '+44').",
-                "Ensure accuracy between 'to' and 'from' — if the text is near 'To:' or 'From:', it belongs there."
-            };
-            return string.Join("\n", lines);
-        }
-        private string GetPrompt()
-        {
-            string[] lines =
-            [
-            "You are a precise data extraction system that analyzes shipping label images.",
-            "Your task is to extract all visible shipment information and return it **strictly** as a JSON object following this schema:",
-            "",
-            "interface Address {",
-            "  country: string | null;",
-            "  state: string | null;",
-            "  region: string | null;",
-            "  city: string | null;",
-            "  postalCode: string | null;",
-            "  streetAndHouse: string | null;",
-            "}",
-            "",
-            "interface Details {",
-            "  name: string | null;",
-            "  phone: string | null;",
-            "  email: string | null;",
-            "  address: Address;",
-            "}",
-            "",
-            "interface PackageDetails {",
-            "  barcode: string | null;",
-            "  from: Details;",
-            "  to: Details;",
-            "  weight: number | null;",
-            "  date: string | null;",
-            "  contentDescription: string[];",
-            "}",
-            "",
-            "Instructions:",
-            "1. Analyze all visible text, barcodes, and numbers in the provided image(s).",
-            "2. If multiple shipping labels are visible, return an array of PackageDetails objects; otherwise, return a single object.",
-            "3. Assign data accurately — fields near 'TO', 'SHIP TO', or destination areas belong to 'to'; fields near 'FROM' or sender areas belong to 'from'.",
-            "4. Expand country and state abbreviations to full names (e.g., 'US' → 'United States', 'CA' → 'California').",
-            "5. Normalize phone numbers to include international dialing codes (e.g., '+1', '+44').",
-            "6. Use null for missing or illegible data — do not guess or infer beyond visible information.",
-            "7. Detect and decode any printed barcode text into the 'barcode' field.",
-            "8. Detect and list product descriptions or contents in 'contentDescription' as an array of strings.",
-            "9. Output only raw JSON — no commentary, markdown, or explanations."
-            ];
-
-            return string.Join("\n", lines);
-        }
-        private string GetPromptForBoundingBoxes()
-        {
-            return string.Join("\n", new[]
-            {
-        "Analyze the attached image of packages.",
-        "Detect all packages visible in the image.",
-        "For each detected package, return its bounding box coordinates as pixel values relative to the top-left corner of the image.",
-        "Return the result strictly as a JSON array, where each element is an object in the format:",
-        "[{\"x1\": <left>, \"y1\": <top>, \"x2\": <right>, \"y2\": <bottom>}]",
-        "Do not include any explanations, comments, or additional text — only the JSON array."
-    });
-        }
-
-
-
-        [HttpGet("askGemini")]
-        public async Task<IActionResult> AskGeminiAsync([FromQuery] string prompt)
-        {
-            string promptToUse = prompt;
-            if (string.IsNullOrWhiteSpace(prompt))
-            {
-                promptToUse = GetPrompt();
-            }
-
-            Logger.Instance.LogInfo($"AskGemini endpoint accessed with prompt: {promptToUse}");
-
-            string? result = await _geminiAPI.AskGeminiAsync(promptToUse);
-
-            if (string.IsNullOrWhiteSpace(result))
-            {
-                Logger.Instance.LogError("Gemini returned empty response.");
-                return BadRequest("Error calling Gemini API.");
-            }
-
-            Logger.Instance.LogInfo("Gemini text response received successfully.");
-            return Ok(result);
-        }
-
 
         [HttpGet("analyzeFixedImage")]
         public async Task<IActionResult> AnalyzeFixedImageAsync([FromQuery] string? prompt)
         {
-            prompt ??= GetPromptForBoundingBoxes();
+            Logger.LogInfo("GeminiController.AnalyzeFixedImageAsync called.");
 
-            string imagePath = "./test1.png";
+            var result = await _geminiService.AnalyzeFixedImageAsync(prompt);
 
 
             if (!System.IO.File.Exists(imagePath))
             {
-                Logger.Instance.LogError($"Image not found at: {imagePath}");
-                return NotFound($"File '{imagePath}' not found.");
+                Logger.LogError("Service returned null result.");
+                return BadRequest("Gemini service returned null result.");
             }
             List<BoundingBox> BoundingBoxes = PackagesDetector.Detect("./test1.png", 0.01f);
             var x = "1";
