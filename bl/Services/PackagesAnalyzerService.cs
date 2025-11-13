@@ -9,6 +9,11 @@ namespace CameraAnalyzer.bl.Services
       {
             public Task<string> AnalyzeImageAsync()
             {
+                  // First step: detect packages in the image
+                  
+                  // Second step: crop detected packages
+
+                  // Third step: analyze each cropped image with Gemini API
                   return Task.FromResult("Analyzed Image");
             }
 
