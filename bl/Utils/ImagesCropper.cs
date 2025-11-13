@@ -20,20 +20,24 @@ namespace CameraAnalyzer.bl.Utils
 
                 using (Image<Rgba32> image = Image.Load<Rgba32>(originalFilePath))
                 {
-                    if (x1 < 0 || y1 < 0 || x2 > image.Width || y2 > image.Height)
+                    int imgW = image.Width;
+                    int imgH = image.Height;
+
+                    // Clamp coordinates safely
+                    x1 = Math.Clamp(x1, 0, imgW - 1);
+                    y1 = Math.Clamp(y1, 0, imgH - 1);
+                    x2 = Math.Clamp(x2, 0, imgW);
+                    y2 = Math.Clamp(y2, 0, imgH);
+
+                    // Ensure x1 < x2, y1 < y2
+                    if (x2 <= x1 || y2 <= y1)
                     {
-                        Logger.LogError($"Crop area ({x1},{y1},{x2},{y2}) is outside image bounds ({image.Width}x{image.Height}).");
+                        Logger.LogError($"Invalid crop box after clamping ({x1},{y1},{x2},{y2}).");
                         return;
                     }
 
                     int width = x2 - x1;
                     int height = y2 - y1;
-
-                    if (width <= 0 || height <= 0)
-                    {
-                        Logger.LogError("Invalid crop dimensions (width/height <= 0).");
-                        return;
-                    }
 
                     var cropRectangle = new Rectangle(x1, y1, width, height);
                     image.Mutate(ctx => ctx.Crop(cropRectangle));
@@ -51,5 +55,6 @@ namespace CameraAnalyzer.bl.Utils
                 Logger.LogError($"CropAndSaveImage failed: {ex.Message}");
             }
         }
+
     }
 }
