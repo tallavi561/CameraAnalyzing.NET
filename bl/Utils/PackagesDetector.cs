@@ -57,7 +57,7 @@ namespace CameraAnalyzer.bl.Utils
             // --- 6. Apply Non-Maximum Suppression ---
             var finalBoxes = ApplyNms(boxes, 0.45f);
 
-            Logger.Instance.LogInfo($"Detected {finalBoxes.Count} packages (threshold={confidenceThreshold}).");
+            Logger.LogInfo($"Detected {finalBoxes.Count} packages (threshold={confidenceThreshold}).");
             return finalBoxes;
         }
 
