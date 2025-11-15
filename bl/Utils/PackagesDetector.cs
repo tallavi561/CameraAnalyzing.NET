@@ -1,41 +1,183 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
-using System.Drawing;          // System.Drawing.Image + RectangleF
-using Yolov8Net;               // חבילת Yolov8.Net 1.0.4
+using Microsoft.ML.OnnxRuntime;
+using Microsoft.ML.OnnxRuntime.Tensors;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing; // נדרש ל-Resize
 using CameraAnalyzer.bl.Models;
 
 namespace CameraAnalyzer.bl.Utils
 {
     public static class PackagesDetector
     {
-        private static readonly IPredictor _model = YoloV8Predictor.Create("models/yolov5n.onnx");
+        private static readonly object _lock = new();
+        private static InferenceSession? _session;
 
-        /**
-         * Detect packages and return bounding boxes.
-         */
-        public static List<BoundingBox> Detect(string imagePath, float confidenceThreshold = 0.35f)
+        /// <summary>
+        /// Detect packages using YOLOv5n (ONNX Runtime). Works on Linux/Windows/macOS.
+        /// </summary>
+        public static List<BoundingBox> Detect(string imagePath, float confidenceThreshold = 0.02f)
         {
-            using var image = Image.FromFile(imagePath);     // שים לב: System.Drawing.Image
+            if (!File.Exists(imagePath))
+                throw new FileNotFoundException($"Image not found: {imagePath}");
 
-            var results = _model.Predict(image);             // IEnumerable<Prediction>
+            // --- 1. Load the model once ---
+            lock (_lock)
+            {
+                _session ??= new InferenceSession("models/yolov5n.onnx");
+            }
 
-            var boxes = results
-                .Where(r => r.Score >= confidenceThreshold)  // ← לא Confidence, אלא Score
-                .Select(r =>
+            // --- 2. Load image ---
+            using var image = Image.Load<Rgba32>(imagePath);
+            int originalWidth = image.Width;
+            int originalHeight = image.Height;
+
+            // --- 3. Convert image to tensor ---
+            const int targetSize = 640;
+            var tensor = ImageToTensor(image, targetSize, targetSize);
+
+            // --- 4. Run model inference ---
+            var inputs = new List<NamedOnnxValue>
+            {
+                NamedOnnxValue.CreateFromTensor("images", tensor)
+            };
+
+            using var results = _session.Run(inputs);
+            var result = results.First(r => r.Name == "output");
+            var outputTensor = result.AsTensor<float>();
+
+            Console.WriteLine($"Tensor shape: {string.Join('x', outputTensor.Dimensions.ToArray())}");
+
+            // --- 5. Parse YOLO output ---
+            var boxes = ParseYoloOutput(outputTensor, originalWidth, originalHeight, confidenceThreshold);
+
+            // --- 6. Apply Non-Maximum Suppression ---
+            var finalBoxes = ApplyNms(boxes, 0.45f);
+
+            Logger.LogInfo($"Detected {finalBoxes.Count} packages (threshold={confidenceThreshold}).");
+            return finalBoxes;
+        }
+
+        /// <summary>
+        /// Convert ImageSharp image to normalized float tensor (1x3x640x640)
+        /// </summary>
+        private static DenseTensor<float> ImageToTensor(Image<Rgba32> image, int width, int height)
+        {
+            var resized = image.Clone(x => x.Resize(width, height));
+            var tensor = new DenseTensor<float>(new[] { 1, 3, height, width });
+
+            resized.ProcessPixelRows(accessor =>
+            {
+                for (int y = 0; y < height; y++)
                 {
-                    var rect = r.Rectangle; // RectangleF
-                    return new BoundingBox
+                    var row = accessor.GetRowSpan(y);
+                    for (int x = 0; x < width; x++)
                     {
-                        x1 = (int)rect.Left,
-                        y1 = (int)rect.Top,
-                        x2 = (int)rect.Right,
-                        y2 = (int)rect.Bottom
-                    };
-                })
-                .ToList();
+                        // נורמליזציה מדויקת ל-YOLO (טווח -1 עד 1)
+                        tensor[0, 0, y, x] = (row[x].R / 255f - 0.5f) / 0.5f;
+                        tensor[0, 1, y, x] = (row[x].G / 255f - 0.5f) / 0.5f;
+                        tensor[0, 2, y, x] = (row[x].B / 255f - 0.5f) / 0.5f;
+                    }
+                }
+            });
 
-            Logger.LogInfo($"Detected {boxes.Count} packages (threshold={confidenceThreshold}).");
+            return tensor;
+        }
+
+        /// <summary>
+        /// Parse YOLOv5 output tensor into bounding boxes.
+        /// </summary>
+        private static List<BoundingBox> ParseYoloOutput(
+            Tensor<float> outputTensor,
+            int originalWidth,
+            int originalHeight,
+            float confidenceThreshold)
+        {
+            var dims = outputTensor.Dimensions; // [1, 25200, 85]
+            int numBoxes = dims[1];
+            int attributes = dims[2];
+            var boxes = new List<BoundingBox>();
+
+            float scaleX = originalWidth / 640f;
+            float scaleY = originalHeight / 640f;
+
+            for (int i = 0; i < numBoxes; i++)
+            {
+                float x = outputTensor[0, i, 0];
+                float y = outputTensor[0, i, 1];
+                float w = outputTensor[0, i, 2];
+                float h = outputTensor[0, i, 3];
+                float objectness = outputTensor[0, i, 4];
+
+                // Find best class score
+                float maxClassScore = 0f;
+                for (int c = 5; c < attributes; c++)
+                    if (outputTensor[0, i, c] > maxClassScore)
+                        maxClassScore = outputTensor[0, i, c];
+
+                float confidence = objectness * maxClassScore;
+                if (confidence < confidenceThreshold)
+                    continue;
+
+                int x1 = (int)((x - w / 2) * scaleX);
+                int y1 = (int)((y - h / 2) * scaleY);
+                int x2 = (int)((x + w / 2) * scaleX);
+                int y2 = (int)((y + h / 2) * scaleY);
+
+                boxes.Add(new BoundingBox
+                {
+                    x1 = Math.Max(0, x1),
+                    y1 = Math.Max(0, y1),
+                    x2 = Math.Min(originalWidth, x2),
+                    y2 = Math.Min(originalHeight, y2),
+                    Confidence = confidence
+                });
+
+                Console.WriteLine($"Box {i}: conf={confidence:F2} ({x1},{y1})-({x2},{y2})");
+            }
+
             return boxes;
+        }
+
+        /// <summary>
+        /// Non-Maximum Suppression (NMS) to remove overlapping boxes.
+        /// </summary>
+        private static List<BoundingBox> ApplyNms(List<BoundingBox> boxes, float iouThreshold)
+        {
+            var finalBoxes = new List<BoundingBox>();
+            var sorted = boxes.OrderByDescending(b => b.Confidence).ToList();
+
+            while (sorted.Count > 0)
+            {
+                var current = sorted[0];
+                finalBoxes.Add(current);
+                sorted.RemoveAt(0);
+
+                sorted = sorted.Where(box => IoU(current, box) < iouThreshold).ToList();
+            }
+
+            return finalBoxes;
+        }
+
+        /// <summary>
+        /// Compute Intersection over Union (IoU)
+        /// </summary>
+        private static float IoU(BoundingBox a, BoundingBox b)
+        {
+            int x1 = Math.Max(a.x1, b.x1);
+            int y1 = Math.Max(a.y1, b.y1);
+            int x2 = Math.Min(a.x2, b.x2);
+            int y2 = Math.Min(a.y2, b.y2);
+
+            int interArea = Math.Max(0, x2 - x1) * Math.Max(0, y2 - y1);
+            int boxAArea = Math.Max(0, a.x2 - a.x1) * Math.Max(0, a.y2 - a.y1);
+            int boxBArea = Math.Max(0, b.x2 - b.x1) * Math.Max(0, b.y2 - b.y1);
+            int unionArea = boxAArea + boxBArea - interArea;
+
+            return unionArea == 0 ? 0 : (float)interArea / unionArea;
         }
     }
 }

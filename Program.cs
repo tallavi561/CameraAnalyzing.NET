@@ -11,8 +11,7 @@ builder.Services.AddSwaggerGen();
 // הוספת GeminiAPI ו־GeminiService
 builder.Services.AddSingleton<GeminiAPI>();
 builder.Services.AddScoped<IGeminiService, GeminiService>();
-builder.Services.AddSingleton<GoogleVisionAPI>();
-
+// builder.Services.AddSingleton<GoogleVisionAPI>();
 
 var app = builder.Build();
 

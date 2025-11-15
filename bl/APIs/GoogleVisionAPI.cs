@@ -17,7 +17,6 @@ namespace CameraAnalyzer.bl.APIs
 
         public GoogleVisionAPI(IConfiguration configuration)
         {
-            // מושך את המפתח מתוך appsettings.json
             _apiKey = configuration["GoogleVisionAPI:ApiKey"];
             _httpClient = new HttpClient();
 
@@ -33,6 +32,8 @@ namespace CameraAnalyzer.bl.APIs
         /// <param name="imagePath">Path to the image file on disk.</param>
         /// <param name="prompt">Instruction or analysis context (for logging purposes only).</param>
         /// <returns>Raw JSON string with the API response.</returns>
+
+
         public async Task<string> AnalyzeImageAsync(string imagePath, string prompt)
         {
             try
@@ -44,6 +45,7 @@ namespace CameraAnalyzer.bl.APIs
                 string base64Image = Convert.ToBase64String(imageBytes);
 
                 Logger.LogInfo($"Sending image '{Path.GetFileName(imagePath)}' to Google Vision API with prompt: {prompt}");
+                Logger.LogInfo($"Sending image '{imagePath}' to Google Vision API with prompt: {prompt}");
 
                 var requestBody = new
                 {
@@ -52,10 +54,7 @@ namespace CameraAnalyzer.bl.APIs
                         new
                         {
                             image = new { content = base64Image },
-                            features = new[]
-                            {
-                                new { type = "OBJECT_LOCALIZATION" }
-                            }
+                            features = new[] { new { type = "OBJECT_LOCALIZATION" } }
                         }
                     }
                 };
@@ -68,9 +67,11 @@ namespace CameraAnalyzer.bl.APIs
                 );
 
                 response.EnsureSuccessStatusCode();
-                string jsonResponse = await response.Content.ReadAsStringAsync();
 
                 Logger.LogInfo("Google Vision API response received successfully.");
+                string jsonResponse = await response.Content.ReadAsStringAsync();
+                Logger.LogInfo("Google Vision API response received successfully.");
+
                 return jsonResponse;
             }
             catch (Exception ex)

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
+using CameraAnalyzer.bl.Models;
 using CameraAnalyzer.bl.Services;
 using CameraAnalyzer.bl.Utils;
 
@@ -23,13 +24,72 @@ namespace CameraAnalyzer.Controllers
 
             var result = await _geminiService.AnalyzeFixedImageAsync(prompt);
 
-            if (result == null)
+
+            if (!System.IO.File.Exists(imagePath))
             {
                 Logger.LogError("Service returned null result.");
                 return BadRequest("Gemini service returned null result.");
             }
+            List<BoundingBox> BoundingBoxes = PackagesDetector.Detect("./test1.png", 0.01f);
+            var x = "1";
+            BoundingBoxes.ForEach((boundingBox) =>
+            {
+                ImagesCropper.CropAndSaveImage(boundingBox.x1, boundingBox.y1, boundingBox.x2, boundingBox.y2, "./test1.png", "./cropped_outputs/" + x + ".png");
+                x += "1";
 
-            return Ok(result);
+            });
+
+            string base64Image;
+            using (var memoryStream = new MemoryStream())
+            {
+                await using (var fileStream = System.IO.File.OpenRead(imagePath))
+                    await fileStream.CopyToAsync(memoryStream);
+                base64Image = Convert.ToBase64String(memoryStream.ToArray());
+            }
+
+            string mimeType = "image/png";
+            Logger.LogInfo($"Sending fixed image '{imagePath}' to Gemini API...");
+
+            string? result = await _geminiAPI.AnalyzeImageAsync(base64Image, prompt, mimeType);
+
+            if (string.IsNullOrWhiteSpace(result))
+            {
+                Logger.LogError("Gemini returned empty response for image.");
+                return BadRequest("Gemini returned no text output.");
+            }
+
+            Logger.LogInfo("Gemini image analysis completed successfully: " + result);
+
+            try
+            {
+                var boxes = System.Text.Json.JsonSerializer.Deserialize<List<CameraAnalyzer.bl.Models.BoundingBox>>(result);
+
+                if (boxes == null || boxes.Count == 0)
+                {
+                    Logger.LogError("No bounding boxes found in Gemini response.");
+                    return Ok("No bounding boxes detected.");
+                }
+
+                string sourceImagePath = "./test1.png";
+                int index = 1;
+
+                foreach (var box in boxes)
+                {
+                    string newFilePath = $"./cropped_outputs/crop_{index}.png";
+                    ImagesCropper.CropAndSaveImage(box.x1, box.y1, box.x2, box.y2, sourceImagePath, newFilePath);
+                    index++;
+                }
+
+                return Ok(new { message = "Cropping completed.", count = boxes.Count });
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError("Error parsing bounding box JSON: " + ex.Message);
+                return BadRequest("Invalid bounding box JSON format.");
+            }
+
+
+
         }
     }
 }
