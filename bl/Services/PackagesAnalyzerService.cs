@@ -13,7 +13,6 @@ namespace CameraAnalyzer.bl.Services
             private readonly GoogleVisionAPI _googleVisionAPI;
             private readonly IGeminiService _geminiService;
 
-            // ---- CONSTRUCTOR: Dependency Injection ----
             public PackagesAnalyzerService(GoogleVisionAPI googleVisionAPI,
                                            IGeminiService geminiService)
             {
@@ -22,15 +21,15 @@ namespace CameraAnalyzer.bl.Services
             }
             private string GetPromptForBoundingBoxes()
             {
-                  return string.Join("\n", new[]
-                  {
+                  return string.Join("\n",
+                  [
                 "Analyze the attached image of packages.",
                 "Detect all packages visible in the image.",
                 "For each detected package, return its bounding box coordinates as pixel values relative to the top-left corner of the image.",
                 "Return the result strictly as a JSON array, where each element is an object in the format:",
                 "[{\"x1\": <left>, \"y1\": <top>, \"x2\": <right>, \"y2\": <bottom>}]",
                 "Do not include any explanations, comments, or additional text — only the JSON array."
-            });
+                  ]);
             }
 
             public async Task<string> AnalyzeImageAsync()

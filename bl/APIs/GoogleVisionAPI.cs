@@ -11,15 +11,13 @@ namespace CameraAnalyzer.bl.APIs
 {
     public class GoogleVisionAPI
     {
-        private readonly string _apiEndpoint = "https://vision.googleapis.com/v1/images:annotate";
-        private readonly string _apiKey;
         private readonly HttpClient _httpClient;
+        private readonly string _apiKey;
+        private const string Endpoint = "https://vision.googleapis.com/v1/images:annotate";
 
         public GoogleVisionAPI(HttpClient httpClient, IConfiguration configuration)
         {
             _httpClient = httpClient;
-
-            _apiEndpoint = "https://vision.googleapis.com/v1/images:annotate";
             _apiKey = configuration["GoogleVisionAPI:ApiKey"];
 
             if (string.IsNullOrEmpty(_apiKey))
@@ -29,25 +27,27 @@ namespace CameraAnalyzer.bl.APIs
         }
 
         /// <summary>
-        /// Sends an image to Google Vision API for object detection or analysis.
+        /// Sends an image to Google Vision API for OBJECT_LOCALIZATION and returns raw JSON.
         /// </summary>
-        /// <param name="imagePath">Path to the image file on disk.</param>
-        /// <param name="prompt">Instruction or analysis context (for logging purposes only).</param>
-        /// <returns>Raw JSON string with the API response.</returns>
-
-
         public async Task<string> AnalyzeImageAsync(string imagePath, string prompt)
         {
             try
             {
+                // 1. Validate image path
                 if (!File.Exists(imagePath))
-                    throw new FileNotFoundException("Image file not found.", imagePath);
+                {
+                    string msg = $"Image file not found: {imagePath}";
+                    Logger.LogError(msg);
+                    return JsonError(msg);
+                }
 
+                // 2. Convert image to Base64
                 string base64Image = await ImagesProcessing.ConvertImageToBase64(imagePath);
 
-                Logger.LogInfo($"Sending image '{Path.GetFileName(imagePath)}' to Google Vision API with prompt: {prompt}");
-                Logger.LogInfo($"Sending image '{imagePath}' to Google Vision API with prompt: {prompt}");
+                Logger.LogInfo($"Sending '{Path.GetFileName(imagePath)}' to Google Vision API...");
+                Logger.LogInfo("Prompt (ignored by Vision API): " + prompt);
 
+                // 3. Build request body EXACTLY in the format Google Vision expects
                 var requestBody = new
                 {
                     requests = new[]
@@ -55,31 +55,47 @@ namespace CameraAnalyzer.bl.APIs
                         new
                         {
                             image = new { content = base64Image },
-                            features = new[] { new { type = "OBJECT_LOCALIZATION" } }
+                            features = new[]
+                            {
+                                new { type = "OBJECT_LOCALIZATION", maxResults = 50 }
+                            }
                         }
                     }
                 };
 
                 string jsonBody = JsonSerializer.Serialize(requestBody);
+                var httpContent = new StringContent(jsonBody, Encoding.UTF8, "application/json");
 
-                var response = await _httpClient.PostAsync(
-                    $"{_apiEndpoint}?key={_apiKey}",
-                    new StringContent(jsonBody, Encoding.UTF8, "application/json")
-                );
+                // 4. Send request
+                Logger.LogInfo("Calling Google Vision API...");
+                var response = await _httpClient.PostAsync($"{Endpoint}?key={_apiKey}", httpContent);
 
-                response.EnsureSuccessStatusCode();
+                string rawJson = await response.Content.ReadAsStringAsync();
 
+                // 5. Handle error responses
+                if (!response.IsSuccessStatusCode)
+                {
+                    Logger.LogError("Google Vision API ERROR:");
+                    Logger.LogError(rawJson);
+                    return rawJson;
+                }
+
+                // 6. Success
                 Logger.LogInfo("Google Vision API response received successfully.");
-                string jsonResponse = await response.Content.ReadAsStringAsync();
-                Logger.LogInfo("Google Vision API response received successfully.");
+                Logger.LogInfo("RAW RESPONSE: " + rawJson);
 
-                return jsonResponse;
+                return rawJson;
             }
             catch (Exception ex)
             {
-                Logger.LogError($"Error calling Google Vision API: {ex.Message}");
-                return $"{{\"error\":\"{ex.Message}\"}}";
+                Logger.LogError("Unexpected error while calling Google Vision API: " + ex);
+                return JsonError(ex.Message);
             }
+        }
+
+        private string JsonError(string message)
+        {
+            return $"{{\"error\":\"{message.Replace("\"", "")}\"}}";
         }
     }
 }

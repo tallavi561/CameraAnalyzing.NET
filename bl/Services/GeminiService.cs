@@ -76,7 +76,7 @@ namespace CameraAnalyzer.bl.Services
                 foreach (var box in boxes)
                 {
                     string newFilePath = $"./cropped_outputs/crop_{index}.png";
-                    ImagesCropper.CropAndSaveImage(box.x1, box.y1, box.x2, box.y2, imagePath, newFilePath);
+                    ImagesProcessing.CropAndSaveImage(box.x1, box.y1, box.x2, box.y2, imagePath, newFilePath);
                     index++;
                 }
 
