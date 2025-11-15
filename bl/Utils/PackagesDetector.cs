@@ -122,21 +122,21 @@ namespace CameraAnalyzer.bl.Utils
                 if (confidence < confidenceThreshold)
                     continue;
 
-                int x1 = (int)((x - w / 2) * scaleX);
-                int y1 = (int)((y - h / 2) * scaleY);
-                int x2 = (int)((x + w / 2) * scaleX);
-                int y2 = (int)((y + h / 2) * scaleY);
+                int X1 = (int)((x - w / 2) * scaleX);
+                int Y1 = (int)((y - h / 2) * scaleY);
+                int X2 = (int)((x + w / 2) * scaleX);
+                int Y2 = (int)((y + h / 2) * scaleY);
 
                 boxes.Add(new BoundingBox
                 {
-                    x1 = Math.Max(0, x1),
-                    y1 = Math.Max(0, y1),
-                    x2 = Math.Min(originalWidth, x2),
-                    y2 = Math.Min(originalHeight, y2),
+                    X1 = Math.Max(0, X1),
+                    Y1 = Math.Max(0, Y1),
+                    X2 = Math.Min(originalWidth, X2),
+                    Y2 = Math.Min(originalHeight, Y2),
                     Confidence = confidence
                 });
 
-                Console.WriteLine($"Box {i}: conf={confidence:F2} ({x1},{y1})-({x2},{y2})");
+                Console.WriteLine($"Box {i}: conf={confidence:F2} ({X1},{Y1})-({X2},{Y2})");
             }
 
             return boxes;
@@ -167,14 +167,14 @@ namespace CameraAnalyzer.bl.Utils
         /// </summary>
         private static float IoU(BoundingBox a, BoundingBox b)
         {
-            int x1 = Math.Max(a.x1, b.x1);
-            int y1 = Math.Max(a.y1, b.y1);
-            int x2 = Math.Min(a.x2, b.x2);
-            int y2 = Math.Min(a.y2, b.y2);
+            int X1 = Math.Max(a.X1, b.X1);
+            int Y1 = Math.Max(a.Y1, b.Y1);
+            int X2 = Math.Min(a.X2, b.X2);
+            int Y2 = Math.Min(a.Y2, b.Y2);
 
-            int interArea = Math.Max(0, x2 - x1) * Math.Max(0, y2 - y1);
-            int boxAArea = Math.Max(0, a.x2 - a.x1) * Math.Max(0, a.y2 - a.y1);
-            int boxBArea = Math.Max(0, b.x2 - b.x1) * Math.Max(0, b.y2 - b.y1);
+            int interArea = Math.Max(0, X2 - X1) * Math.Max(0, Y2 - Y1);
+            int boxAArea = Math.Max(0, a.X2 - a.X1) * Math.Max(0, a.Y2 - a.Y1);
+            int boxBArea = Math.Max(0, b.X2 - b.X1) * Math.Max(0, b.Y2 - b.Y1);
             int unionArea = boxAArea + boxBArea - interArea;
 
             return unionArea == 0 ? 0 : (float)interArea / unionArea;

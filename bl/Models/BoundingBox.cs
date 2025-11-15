@@ -2,10 +2,12 @@ namespace CameraAnalyzer.bl.Models
 {
     public class BoundingBox
     {
-        public int x1 { get; set; }
-        public int y1 { get; set; }
-        public int x2 { get; set; }
-        public int y2 { get; set; }
+        public string Class { get; set; }
         public float Confidence { get; set; }
+
+        public int X1 { get; set; }
+        public int Y1 { get; set; }
+        public int X2 { get; set; }
+        public int Y2 { get; set; }
     }
 }

@@ -76,7 +76,7 @@ namespace CameraAnalyzer.bl.Services
                 foreach (var box in boxes)
                 {
                     string newFilePath = $"./cropped_outputs/crop_{index}.png";
-                    ImagesProcessing.CropAndSaveImage(box.x1, box.y1, box.x2, box.y2, imagePath, newFilePath);
+                    ImagesProcessing.CropAndSaveImage(box.X1, box.Y1, box.X2, box.Y2, imagePath, newFilePath);
                     index++;
                 }
 
@@ -98,7 +98,7 @@ namespace CameraAnalyzer.bl.Services
                 "Detect all packages visible in the image.",
                 "For each detected package, return its bounding box coordinates as pixel values relative to the top-left corner of the image.",
                 "Return the result strictly as a JSON array, where each element is an object in the format:",
-                "[{\"x1\": <left>, \"y1\": <top>, \"x2\": <right>, \"y2\": <bottom>}]",
+                "[{\"X1\": <left>, \"Y1\": <top>, \"X2\": <right>, \"Y2\": <bottom>}]",
                 "Do not include any explanations, comments, or additional text — only the JSON array."
             });
         }

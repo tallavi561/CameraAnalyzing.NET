@@ -9,7 +9,7 @@ namespace CameraAnalyzer.bl.Utils
 {
     public static class ImagesProcessing
     {
-        public static void CropAndSaveImage(int x1, int y1, int x2, int y2, string originalFilePath, string newFilePath)
+        public static void CropAndSaveImage(int X1, int Y1, int X2, int Y2, string originalFilePath, string newFilePath)
         {
             try
             {
@@ -25,22 +25,22 @@ namespace CameraAnalyzer.bl.Utils
                     int imgH = image.Height;
 
                     // Clamp coordinates safely
-                    x1 = Math.Clamp(x1, 0, imgW - 1);
-                    y1 = Math.Clamp(y1, 0, imgH - 1);
-                    x2 = Math.Clamp(x2, 0, imgW);
-                    y2 = Math.Clamp(y2, 0, imgH);
+                    X1 = Math.Clamp(X1, 0, imgW - 1);
+                    Y1 = Math.Clamp(Y1, 0, imgH - 1);
+                    X2 = Math.Clamp(X2, 0, imgW);
+                    Y2 = Math.Clamp(Y2, 0, imgH);
 
-                    // Ensure x1 < x2, y1 < y2
-                    if (x2 <= x1 || y2 <= y1)
+                    // Ensure X1 < X2, Y1 < Y2
+                    if (X2 <= X1 || Y2 <= Y1)
                     {
-                        Logger.LogError($"Invalid crop box after clamping ({x1},{y1},{x2},{y2}).");
+                        Logger.LogError($"Invalid crop box after clamping ({X1},{Y1},{X2},{Y2}).");
                         return;
                     }
 
-                    int width = x2 - x1;
-                    int height = y2 - y1;
+                    int width = X2 - X1;
+                    int height = Y2 - Y1;
 
-                    var cropRectangle = new Rectangle(x1, y1, width, height);
+                    var cropRectangle = new Rectangle(X1, Y1, width, height);
                     image.Mutate(ctx => ctx.Crop(cropRectangle));
 
                     string? directory = Path.GetDirectoryName(newFilePath);

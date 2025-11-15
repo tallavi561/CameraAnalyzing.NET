@@ -34,7 +34,7 @@
 //             var x = "1";
 //             BoundingBoxes.ForEach((boundingBox) =>
 //             {
-//                 ImagesProcessing.CropAndSaveImage(boundingBox.x1, boundingBox.y1, boundingBox.x2, boundingBox.y2, "./test1.png", "./cropped_outputs/" + x + ".png");
+//                 ImagesProcessing.CropAndSaveImage(boundingBox.X1, boundingBox.Y1, boundingBox.X2, boundingBox.Y2, "./test1.png", "./cropped_outputs/" + x + ".png");
 //                 x += "1";
 
 //             });
@@ -76,7 +76,7 @@
 //                 foreach (var box in boxes)
 //                 {
 //                     string newFilePath = $"./cropped_outputs/crop_{index}.png";
-//                     ImagesProcessing.CropAndSaveImage(box.x1, box.y1, box.x2, box.y2, sourceImagePath, newFilePath);
+//                     ImagesProcessing.CropAndSaveImage(box.X1, box.Y1, box.X2, box.Y2, sourceImagePath, newFilePath);
 //                     index++;
 //                 }
 
