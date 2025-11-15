@@ -5,22 +5,35 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using CameraAnalyzer.bl.Utils;
+using Microsoft.Extensions.Configuration;
 
 namespace CameraAnalyzer.bl.APIs
 {
-    public static class GoogleVisionAPI
+    public class GoogleVisionAPI
     {
-        private static readonly string _apiEndpoint = "https://vision.googleapis.com/v1/images:annotate";
-        private static readonly string _apiKey = Environment.GetEnvironmentVariable("GOOGLE_VISION_API_KEY") 
-                                                 ?? "YOUR_API_KEY_HERE";
+        private readonly string _apiEndpoint = "https://vision.googleapis.com/v1/images:annotate";
+        private readonly string _apiKey;
+        private readonly HttpClient _httpClient;
+
+        public GoogleVisionAPI(IConfiguration configuration)
+        {
+            // מושך את המפתח מתוך appsettings.json
+            _apiKey = configuration["GoogleVisionAPI:ApiKey"];
+            _httpClient = new HttpClient();
+
+            if (string.IsNullOrEmpty(_apiKey))
+                Logger.LogWarning("Google Vision API key not found in configuration!");
+            else
+                Logger.LogInfo("Google Vision API initialized successfully.");
+        }
 
         /// <summary>
         /// Sends an image to Google Vision API for object detection or analysis.
         /// </summary>
         /// <param name="imagePath">Path to the image file on disk.</param>
-        /// <param name="prompt">Instruction or analysis context (e.g. "Detect all labels").</param>
+        /// <param name="prompt">Instruction or analysis context (for logging purposes only).</param>
         /// <returns>Raw JSON string with the API response.</returns>
-        public static async Task<string> AnalyzeImageAsync(string imagePath, string prompt)
+        public async Task<string> AnalyzeImageAsync(string imagePath, string prompt)
         {
             try
             {
@@ -30,8 +43,7 @@ namespace CameraAnalyzer.bl.APIs
                 byte[] imageBytes = await File.ReadAllBytesAsync(imagePath);
                 string base64Image = Convert.ToBase64String(imageBytes);
 
-                // Currently Google Vision does not use "prompt" text, but we log it for future extensions.
-                Logger.LogInfo($"Sending image '{imagePath}' to Google Vision API with prompt: {prompt}");
+                Logger.LogInfo($"Sending image '{Path.GetFileName(imagePath)}' to Google Vision API with prompt: {prompt}");
 
                 var requestBody = new
                 {
@@ -49,9 +61,8 @@ namespace CameraAnalyzer.bl.APIs
                 };
 
                 string jsonBody = JsonSerializer.Serialize(requestBody);
-                using var httpClient = new HttpClient();
 
-                var response = await httpClient.PostAsync(
+                var response = await _httpClient.PostAsync(
                     $"{_apiEndpoint}?key={_apiKey}",
                     new StringContent(jsonBody, Encoding.UTF8, "application/json")
                 );
@@ -59,7 +70,7 @@ namespace CameraAnalyzer.bl.APIs
                 response.EnsureSuccessStatusCode();
                 string jsonResponse = await response.Content.ReadAsStringAsync();
 
-                Logger.LogInfo($"Google Vision API response received successfully.");
+                Logger.LogInfo("Google Vision API response received successfully.");
                 return jsonResponse;
             }
             catch (Exception ex)
