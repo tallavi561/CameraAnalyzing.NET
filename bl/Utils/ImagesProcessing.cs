@@ -1,12 +1,13 @@
 using System;
 using System.IO;
+using System.Threading.Tasks;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.PixelFormats;
 
 namespace CameraAnalyzer.bl.Utils
 {
-    public static class ImagesProcessor
+    public static class ImagesProcessing
     {
         public static void CropAndSaveImage(int x1, int y1, int x2, int y2, string originalFilePath, string newFilePath)
         {
@@ -56,22 +57,21 @@ namespace CameraAnalyzer.bl.Utils
             }
         }
 
-        public static string GetBase66Image(string imagePath)
+        /// <summary>
+        /// Load image and convert to Base64 string.
+        /// </summary>
+        public static async Task<string> ConvertImageToBase64(string imagePath)
         {
             if (!File.Exists(imagePath))
                 throw new FileNotFoundException("Image file not found.", imagePath);
 
-            string base64Image;
-            await using (var fileStream = File.OpenRead(imagePath))
-            using (var memoryStream = new MemoryStream())
-            {
-                await fileStream.CopyToAsync(memoryStream);
-                base64Image = Convert.ToBase64String(memoryStream.ToArray());
-            }
+            await using var fileStream = File.OpenRead(imagePath);
+            await using var memoryStream = new MemoryStream();
+
+            await fileStream.CopyToAsync(memoryStream);
+            string base64Image = Convert.ToBase64String(memoryStream.ToArray());
+
             return base64Image;
         }
-
-
-
     }
 }

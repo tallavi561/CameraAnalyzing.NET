@@ -15,13 +15,15 @@ namespace CameraAnalyzer.bl.APIs
         private readonly string _apiKey;
         private readonly HttpClient _httpClient;
 
-        public GoogleVisionAPI(IConfiguration configuration)
+        public GoogleVisionAPI(HttpClient httpClient, IConfiguration configuration)
         {
+            _httpClient = httpClient;
+
+            _apiEndpoint = "https://vision.googleapis.com/v1/images:annotate";
             _apiKey = configuration["GoogleVisionAPI:ApiKey"];
-            _httpClient = new HttpClient();
 
             if (string.IsNullOrEmpty(_apiKey))
-                Logger.LogWarning("Google Vision API key not found in configuration!");
+                Logger.LogWarning("Google Vision API key missing!");
             else
                 Logger.LogInfo("Google Vision API initialized successfully.");
         }
@@ -41,7 +43,7 @@ namespace CameraAnalyzer.bl.APIs
                 if (!File.Exists(imagePath))
                     throw new FileNotFoundException("Image file not found.", imagePath);
 
-                string base64Image = ImagesProcessor
+                string base64Image = await ImagesProcessing.ConvertImageToBase64(imagePath);
 
                 Logger.LogInfo($"Sending image '{Path.GetFileName(imagePath)}' to Google Vision API with prompt: {prompt}");
                 Logger.LogInfo($"Sending image '{imagePath}' to Google Vision API with prompt: {prompt}");
