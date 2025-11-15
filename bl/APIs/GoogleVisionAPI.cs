@@ -41,8 +41,7 @@ namespace CameraAnalyzer.bl.APIs
                 if (!File.Exists(imagePath))
                     throw new FileNotFoundException("Image file not found.", imagePath);
 
-                byte[] imageBytes = await File.ReadAllBytesAsync(imagePath);
-                string base64Image = Convert.ToBase64String(imageBytes);
+                string base64Image = ImagesProcessor
 
                 Logger.LogInfo($"Sending image '{Path.GetFileName(imagePath)}' to Google Vision API with prompt: {prompt}");
                 Logger.LogInfo($"Sending image '{imagePath}' to Google Vision API with prompt: {prompt}");

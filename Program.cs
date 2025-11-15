@@ -1,4 +1,3 @@
-
 using CameraAnalyzer.bl.APIs;
 using CameraAnalyzer.bl.Services;
 
@@ -8,10 +7,15 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// הוספת GeminiAPI ו־GeminiService
+// Gemini API
 builder.Services.AddSingleton<GeminiAPI>();
 builder.Services.AddScoped<IGeminiService, GeminiService>();
-// builder.Services.AddSingleton<GoogleVisionAPI>();
+
+// Google Vision API – חובה!
+builder.Services.AddHttpClient<GoogleVisionAPI>();
+
+// Packages Analyzer Service
+builder.Services.AddScoped<IPackagesAnalyzerService, PackagesAnalyzerService>();
 
 var app = builder.Build();
 

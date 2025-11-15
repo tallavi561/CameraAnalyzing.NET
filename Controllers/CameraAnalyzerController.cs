@@ -12,7 +12,7 @@ namespace CameraAnalyzer.Controllers
     {
         private readonly IPackagesAnalyzerService _packagesAnalyzerService;
 
-        public CameraAnalyzerController(PackagesAnalyzerService packagesAnalyzerService)
+        public CameraAnalyzerController(IPackagesAnalyzerService packagesAnalyzerService)
         {
             _packagesAnalyzerService = packagesAnalyzerService;
         }
@@ -20,17 +20,16 @@ namespace CameraAnalyzer.Controllers
         [HttpGet("getHomePage")]
         public IActionResult GetHomePage()
         {
-            // Logger.LogInfo("The API key is: " + _geminiAPI.getApiKey());
             Logger.LogInfo("Home page accessed.");
             return Ok("HELLO WORLD");
         }
+
         [HttpGet("startProcess")]
-        public IActionResult StartProcess()
+        public async Task<IActionResult> StartProcess()
         {
             Logger.LogInfo("Start process is starting.");
-            Task<string> result = _packagesAnalyzerService.AnalyzeImageAsync();
-            return Ok("Process Finished " + result.Result);
+            string result = await _packagesAnalyzerService.AnalyzeImageAsync();
+            return Ok("Process Finished " + result);
         }
-        
     }
 }

@@ -30,5 +30,14 @@ namespace CameraAnalyzer.bl.Utils
             Console.ResetColor();
             Console.WriteLine($" {message}");
         }
+
+        public static void LogDebug(string message)
+        {
+            Console.Write($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ");
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.Write("[DEBUG]");
+            Console.ResetColor();
+            Console.WriteLine($" {message}");
+        }
     }
 }

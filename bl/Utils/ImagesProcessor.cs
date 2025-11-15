@@ -6,7 +6,7 @@ using SixLabors.ImageSharp.PixelFormats;
 
 namespace CameraAnalyzer.bl.Utils
 {
-    public static class ImagesCropper
+    public static class ImagesProcessor
     {
         public static void CropAndSaveImage(int x1, int y1, int x2, int y2, string originalFilePath, string newFilePath)
         {
@@ -55,6 +55,23 @@ namespace CameraAnalyzer.bl.Utils
                 Logger.LogError($"CropAndSaveImage failed: {ex.Message}");
             }
         }
+
+        public static string GetBase66Image(string imagePath)
+        {
+            if (!File.Exists(imagePath))
+                throw new FileNotFoundException("Image file not found.", imagePath);
+
+            string base64Image;
+            await using (var fileStream = File.OpenRead(imagePath))
+            using (var memoryStream = new MemoryStream())
+            {
+                await fileStream.CopyToAsync(memoryStream);
+                base64Image = Convert.ToBase64String(memoryStream.ToArray());
+            }
+            return base64Image;
+        }
+
+
 
     }
 }
