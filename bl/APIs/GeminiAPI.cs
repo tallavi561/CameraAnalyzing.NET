@@ -180,6 +180,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using CameraAnalyzer.bl.Utils;
 using Microsoft.Extensions.Configuration;
 
 namespace CameraAnalyzer.bl.APIs
@@ -271,14 +272,7 @@ namespace CameraAnalyzer.bl.APIs
             if (!File.Exists(imagePath))
                 throw new FileNotFoundException("Image not found.", imagePath);
 
-            string base64;
-
-            await using (var fs = File.OpenRead(imagePath))
-            using (var ms = new MemoryStream())
-            {
-                await fs.CopyToAsync(ms);
-                base64 = Convert.ToBase64String(ms.ToArray());
-            }
+            string base64 = await ImagesProcessing.ConvertImageToBase64(imagePath);
 
             return await AnalyzeImageAsync(base64, prompt, mimeType);
         }

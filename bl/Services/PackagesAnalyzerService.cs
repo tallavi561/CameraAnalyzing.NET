@@ -1,4 +1,6 @@
+using System.Text.Json;
 using CameraAnalyzer.bl.APIs;
+using CameraAnalyzer.bl.Models;
 using CameraAnalyzer.bl.Utils;
 
 namespace CameraAnalyzer.bl.Services
@@ -11,13 +13,13 @@ namespace CameraAnalyzer.bl.Services
       public class PackagesAnalyzerService : IPackagesAnalyzerService
       {
             private readonly GoogleVisionAPI _googleVisionAPI;
-            private readonly IGeminiService _geminiService;
+            private readonly GeminiAPI _geminiApi;
 
             public PackagesAnalyzerService(GoogleVisionAPI googleVisionAPI,
-                                           IGeminiService geminiService)
+                                           GeminiAPI geminiApi)
             {
                   _googleVisionAPI = googleVisionAPI;
-                  _geminiService = geminiService;
+                  _geminiApi = geminiApi;
             }
             private string GetPromptForBoundingBoxes()
             {
@@ -36,13 +38,40 @@ namespace CameraAnalyzer.bl.Services
             {
                   // Step 1: detect packages using Google Vision API
                   Logger.LogInfo("Starting package detection using Google Vision API...");
-                  string visionResult = await _googleVisionAPI.AnalyzeImageAsync(
-                      "./test1.png",
-                      GetPromptForBoundingBoxes()
+                  // string visionResult = await _googleVisionAPI.AnalyzeImageAsync(
+                  //     "./test1.png",
+                  //     GetPromptForBoundingBoxes()
+                  // );
+
+                  string visionResult =  await _geminiApi.AnalyzeImageFromStorageAsync(
+                          "./test1.png",
+                          GetPromptForBoundingBoxes()
                   );
                   Logger.LogDebug("Google Vision API response: " + visionResult);
 
                   // Step 2: crop images (you implement this part)
+                  List<BoundingBox> boundingBoxes;
+                  try
+                  {
+                        boundingBoxes = JsonSerializer.Deserialize<List<BoundingBox>>(visionResult);
+                  }
+                  catch (Exception ex)
+                  {
+                        Logger.LogError("Error parsing bounding box JSON: " + ex.Message);
+                        return "Error parsing bounding box JSON.";
+                  }
+
+                  if (boundingBoxes == null || boundingBoxes.Count == 0)
+                  {
+                        Logger.LogInfo("No bounding boxes detected.");
+                        return "No bounding boxes detected.";
+                  }
+                  Logger.LogInfo($"Detected {boundingBoxes.Count} bounding boxes. Starting cropping...");
+                  foreach (var box in boundingBoxes)
+                  {
+                        string newFilePath = $"./cropped_outputs/crop_{Guid.NewGuid()}.png";
+                        ImagesProcessing.CropAndSaveImage(box.x1, box.y1, box.x2, box.y2, "./test1.png", newFilePath);
+                  }
 
                   // Step 3: analyze each cropped image with Gemini
                   // var geminiResponse = await _geminiService.AnalyzeAsync(croppedImage);
